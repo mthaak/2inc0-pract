@@ -2,8 +2,8 @@
  * Operating Systems  (2INC0)  Practical Assignment
  * Interprocess Communication
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Mark Bouwman (STUDENT_NR_1)
+ * Martin ter Haak (0846351)
  *
  * Grading:
  * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 
@@ -25,7 +25,9 @@
 #include "settings.h"
 #include "common.h"
 
-
+static char *mq_name1;
+static char *mq_name2;
+    
 static double 
 complex_dist (complex a)
 {
@@ -43,37 +45,21 @@ mandelbrot_point (double x, double y)
 {
     int     k;
     complex z;
-	complex c;
-    
-	z = x + y * I;     // create a complex number 'z' from 'x' and 'y'
-	c = z;
+    complex c;
 
-	for (k = 0; (k < MAX_ITER) && (complex_dist (z) < INFINITY); k++)
-	{
-	    z = z * z + c;
+    z = x + y * I;     // create a complex number 'z' from 'x' and 'y'
+    c = z;
+
+    for (k = 0; (k < MAX_ITER) && (complex_dist (z) < INFINITY); k++)
+    {
+        z = z * z + c;
     }
     
-    //                                    2
     // k >= MAX_ITER or | z | >= INFINITY
     
     return (k);
 }
 
-
-int main (int argc, char * argv[])
-{
-    // TODO:
-    //  * open the two message queues (whose names are provided in the arguments)
-    //  * repeatingly:
-    //      - read from a message queue the new job to do
-    //      - wait a random amount of time (e.g. rsleep(10000);)
-    //      - do that job (use mandelbrot_point() if you like)
-    //      - write the results to a message queue
-    //    until there are no more jobs to do
-    //  * close the message queues
-    
-    return (0);
-}
 
 /*
  * rsleep(int t)
@@ -92,6 +78,66 @@ static void rsleep (int t)
         first_call = false;
     }
     usleep (random () % t);
+}
+
+
+int main (int argc, char * argv[])
+{
+    // TODO:
+    //  * open the two message queues (whose names are provided in the arguments)
+    //  * repeatingly:
+    //      - read from a message queue the new job to do
+    //      - wait a random amount of time (e.g. rsleep(10000);)
+    //      - do that job (use mandelbrot_point() if you like)
+    //      - write the results to a message queue
+    //    until there are no more jobs to do
+    //  * close the message queues
+    
+    mqd_t                   mq_fd_request;
+    mqd_t                   mq_fd_response;
+    MQ_REQUEST_MESSAGE      req;
+    MQ_RESPONSE_MESSAGE     rsp;
+    
+    mq_name1 = argv[1];
+    mq_name2 = argv[2];
+    
+    printf("mq_name1 = %s", mq_name1);
+    printf("mq_name2 = %s", mq_name2);
+    
+    //  * open the two message queues (whose names are provided in the arguments) 
+    mq_fd_request = mq_open(mq_name1, O_RDONLY);
+    mq_fd_response = mq_open(mq_name2, O_WRONLY);
+
+    //  * repeatingly:
+    while (1){
+        //  - read from a message queue the new job to do
+        ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL);
+        
+        //  until there are no more jobs to do
+        if (bytes_read < 1) {
+            printf("No more jobs\n");
+            break;
+        }
+
+        printf("Received: x=%f, y=%f\n", req.x, req.y);
+
+        //  - wait a random amount of time (e.g. rsleep(10000);)
+        rsleep(1000);
+
+        //  - do that job (use mandelbrot_point() if you like)
+        rsp.k = mandelbrot_point(req.x, req.y); 
+        
+        //  - write the results to a message queue
+        mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
+        
+        printf("Send: k=%d\n", rsp.k);
+    } 
+    
+    //  * close the message queues
+    mq_close(mq_fd_request);
+    mq_close(mq_fd_response);
+
+    return (0);
 }
 
 

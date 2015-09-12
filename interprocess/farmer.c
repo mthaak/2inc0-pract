@@ -2,8 +2,8 @@
  * Operating Systems  (2INC0)  Practical Assignment
  * Interprocess Communication
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Mark Bouwman (STUDENT_NR_1)
+ * Martin ter Haak (0846351)
  *
  * Grading:
  * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 
@@ -27,6 +27,31 @@
 #include "output.h"
 #include "common.h"
 
+
+// ADDED
+pid_t worker_pids[NROF_WORKERS];
+
+void create_workers(){
+    int i;
+    for (i = 0; i < NROF_WORKERS; i++){
+        pid_t workerPID;
+        workerPID = fork();
+        if (workerPID < 0){
+            perror("fork() failed");
+            exit(1);
+        } else {
+            worker_pids[i] = workerPID;
+            if (workerPID == 0){
+                printf("worker pid:%d\n", getpid());
+                execlp("worker", "worker", "", NULL);
+
+                perror("execlp() failed");
+            }
+            
+            waitpid(workerPID, NULL, 0);
+        } 
+    }
+}
 
 
 int main (int argc, char * argv[])
