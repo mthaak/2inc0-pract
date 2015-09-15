@@ -2,7 +2,7 @@
  * Operating Systems  (2INC0)  Practical Assignment
  * Interprocess Communication
  *
- * Mark Bouwman (STUDENT_NR_1)
+ * Mark Bouwman (0868533)
  * Martin ter Haak (0846351)
  *
  * Grading:
@@ -65,9 +65,36 @@ int main (int argc, char * argv[])
 
     // TODO:
     //  * create the message queues & the children
+    mqd_t               mq_fd_request;
+    mqd_t               mq_fd_response;
+    MQ_REQUEST_MESSAGE  req;
+    MQ_RESPONSE_MESSAGE rsp;
+    
+    sprintf (mq_name1, "/mq_request_%s_%d", "MarkMartin", getpid());
+    sprintf (mq_name2, "/mq_response_%s_%d", "MarkMartin", getpid());
+
+    attr.mq_maxmsg  = MQ_MAX_MESSAGES;
+    attr.mq_msgsize = sizeof (MQ_REQUEST_MESSAGE);
+    mq_fd_request = mq_open (mq_name1, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr);
+
+    attr.mq_maxmsg  = MQ_MAX_MESSAGES;
+    attr.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE);
+    mq_fd_response = mq_open (mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr);
+
+    for(i = 0; i < 64; i++) 
+    {
+        //create worker
+    }
+
     //  * do the farming (use output_draw_pixel() for the coloring
+
     //  * wait until the chilren have been stopped
-    //  * clean up the message queues
+
+    //Clean up the message queues
+    mq_close (mq_fd_response);
+    mq_close (mq_fd_request);
+    mq_unlink (mq_name1);
+    mq_unlink (mq_name2);
 
     // Important notice: make sure that your message queues contain your
     // student name and the process id (to ensure uniqueness during testing)

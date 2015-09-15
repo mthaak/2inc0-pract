@@ -2,7 +2,7 @@
  * Operating Systems  (2INC0)  Practical Assignment
  * Interprocess Communication
  *
- * Mark Bouwman (STUDENT_NR_1)
+ * Mark Bouwman (0868533)
  * Martin ter Haak (0846351)
  *
  * Grading:
@@ -109,18 +109,20 @@ int main (int argc, char * argv[])
             break;
         }
 
-        printf("Received: x=%f, y=%f\n", req.x, req.y);
+        printf("Received: x=%f, y=%f\n", req[0].x, req[0].y);
 
         //Wait a random amount of time
         rsleep(500000);
 
-        //Compute the madelbrot point
-        rsp.k = mandelbrot_point(req.x, req.y); 
+        //Compute the madelbrot points
+        for (i = 0; i < X_PIXEL; i++) {
+            rsp[i].k = mandelbrot_point(req[i].x, req[i].y);
+        } 
         
         //Write the results to a message queue
         mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
         
-        printf("Send: k=%d\n", rsp.k);
+        printf("Send: k=%d\n", rsp[0].k);
     } 
     
     //Close the message queues
