@@ -83,16 +83,6 @@ static void rsleep (int t)
 
 int main (int argc, char * argv[])
 {
-    // TODO:
-    //  * open the two message queues (whose names are provided in the arguments)
-    //  * repeatingly:
-    //      - read from a message queue the new job to do
-    //      - wait a random amount of time (e.g. rsleep(10000);)
-    //      - do that job (use mandelbrot_point() if you like)
-    //      - write the results to a message queue
-    //    until there are no more jobs to do
-    //  * close the message queues
-    
     mqd_t                   mq_fd_request;
     mqd_t                   mq_fd_response;
     MQ_REQUEST_MESSAGE      req;
@@ -104,13 +94,13 @@ int main (int argc, char * argv[])
     printf("mq_name1 = %s", mq_name1);
     printf("mq_name2 = %s", mq_name2);
     
-    //  * open the two message queues (whose names are provided in the arguments) 
+    //Open the two message queues
     mq_fd_request = mq_open(mq_name1, O_RDONLY);
     mq_fd_response = mq_open(mq_name2, O_WRONLY);
 
-    //  * repeatingly:
+    //Repeatingly:
     while (1){
-        //  - read from a message queue the new job to do
+        //Read from a message queue the new job to do
         ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL);
         
         //  until there are no more jobs to do
@@ -121,19 +111,19 @@ int main (int argc, char * argv[])
 
         printf("Received: x=%f, y=%f\n", req.x, req.y);
 
-        //  - wait a random amount of time (e.g. rsleep(10000);)
-        rsleep(1000);
+        //Wait a random amount of time
+        rsleep(500000);
 
-        //  - do that job (use mandelbrot_point() if you like)
+        //Compute the madelbrot point
         rsp.k = mandelbrot_point(req.x, req.y); 
         
-        //  - write the results to a message queue
+        //Write the results to a message queue
         mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
         
         printf("Send: k=%d\n", rsp.k);
     } 
     
-    //  * close the message queues
+    //Close the message queues
     mq_close(mq_fd_request);
     mq_close(mq_fd_response);
 
