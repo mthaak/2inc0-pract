@@ -81,14 +81,28 @@ int main (int argc, char * argv[])
     attr.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE);
     mq_fd_response = mq_open (mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr);
 
-    for(i = 0; i < 64; i++) 
-    {
-        //create worker
-    }
+    create_workers();
 
     //  * do the farming (use output_draw_pixel() for the coloring
+    for (i = 0; i < Y_PIXEL; i++)
+    {
+        for (j = 0; j < X_PIXEL; j++)
+        {
+            req[j].x = X_LOWERLEFT+(i*STEP))
+            req[j].y = Y_LOWERLEFT+(j*STEP))
+        }
+    }
 
-    //  * wait until the chilren have been stopped
+    //Wait for children to finish
+    int status;
+    for (i = 0; i < NROF_WORKERS; i++) 
+    {
+        status = pthread_join (worker_pids[i], NULL);
+        if (status != 0)
+        {
+            printf("An error occurred trying to join the workers");
+        }
+    }
 
     //Clean up the message queues
     mq_close (mq_fd_response);
