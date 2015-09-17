@@ -109,20 +109,21 @@ int main (int argc, char * argv[])
             break;
         }
 
-        printf("Received: x=%f, y=%f\n", req[0].x, req[0].y);
+        printf("Received: x=%f, y=%f\n", req.coordinates[0].x, req.coordinates[0].y);
 
         //Wait a random amount of time
         rsleep(500000);
 
         //Compute the madelbrot points
+        int i;
         for (i = 0; i < X_PIXEL; i++) {
-            rsp[i].k = mandelbrot_point(req[i].x, req[i].y);
+            rsp.colors[i] = mandelbrot_point(req.coordinates[i].x, req.coordinates[i].y);
         } 
         
         //Write the results to a message queue
         mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
         
-        printf("Send: k=%d\n", rsp[0].k);
+        printf("Send: k=%d\n", rsp.colors[0]);
     } 
     
     //Close the message queues

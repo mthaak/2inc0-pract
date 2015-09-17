@@ -47,8 +47,6 @@ void create_workers(){
 
                 perror("execlp() failed");
             }
-            
-            waitpid(workerPID, NULL, 0);
         } 
     }
 }
@@ -63,12 +61,16 @@ int main (int argc, char * argv[])
         
     output_init ();
 
-    // TODO:
-    //  * create the message queues & the children
+    //Create the message queues & the children
     mqd_t               mq_fd_request;
     mqd_t               mq_fd_response;
     MQ_REQUEST_MESSAGE  req;
     MQ_RESPONSE_MESSAGE rsp;
+    struct mq_attr      attrReq;
+    struct mq_attr      attrRsp;
+    struct mq_attr      attr;
+    static char         mq_name1[80];
+    static char         mq_name2[80];
     
     sprintf (mq_name1, "/mq_request_%s_%d", "MarkMartin", getpid());
     sprintf (mq_name2, "/mq_response_%s_%d", "MarkMartin", getpid());
@@ -83,26 +85,49 @@ int main (int argc, char * argv[])
 
     create_workers();
 
-    //  * do the farming (use output_draw_pixel() for the coloring
-    for (i = 0; i < Y_PIXEL; i++)
+    //Do the farming
+    int num_sent = 0;
+    int num_received = 0;
+    while (num_sent < Y_PIXEL || num_received < Y_PIXEL)
     {
-        for (j = 0; j < X_PIXEL; j++)
+        mq_getattr(mq_fd_response, &attrRsp);
+        mq_getattr(mq_fd_request, &attrReq);
+
+        if(attrRsp.mq_curmsgs > 0 && attrReq.mq_curmsgs > 5)
         {
-            req[j].x = X_LOWERLEFT+(i*STEP))
-            req[j].y = Y_LOWERLEFT+(j*STEP))
+            //receive response
+            ssize_t bytes_read = mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
+            int i;
+            for (i = 0; i < X_PIXEL; i++) {
+                output_draw_pixel(i, num_received, rsp.colors[i]);
+            }
+            num_received++;
+        }
+        else
+        {
+            //send request
+            int j;
+            for (j = 0; j < X_PIXEL; j++)
+            {
+                req.coordinates[j].x = X_LOWERLEFT+(j*STEP);
+                req.coordinates[j].y = Y_LOWERLEFT+(num_sent*STEP);
+                mq_send(mq_fd_request, (char *) &req, sizeof(req), 0); 
+            }
+            num_sent++;
         }
     }
 
     //Wait for children to finish
     int status;
-    for (i = 0; i < NROF_WORKERS; i++) 
-    {
-        status = pthread_join (worker_pids[i], NULL);
-        if (status != 0)
+    int i;
+//    for (i = 0; i < NROF_WORKERS; i++) 
+//    {
+//        status = pthread_join (worker_pids[i], NULL);
+/*        if (status != 0)
         {
             printf("An error occurred trying to join the workers");
         }
-    }
+    }*/
 
     //Clean up the message queues
     mq_close (mq_fd_response);
