@@ -71,21 +71,21 @@ int main (int argc, char * argv[])
     MQ_RESPONSE_MESSAGE rsp;
     struct mq_attr      attrReq;
     struct mq_attr      attrRsp;
-    struct mq_attr      attr;
     
     sprintf (mq_name1, "/mq_request_%s_%d", "MarkMartin", getpid());
     sprintf (mq_name2, "/mq_response_%s_%d", "MarkMartin", getpid());
-//printf(mq_name1);
-//printf(mq_name2);
 
-    attr.mq_maxmsg  = MQ_MAX_MESSAGES;
-    attr.mq_msgsize = sizeof (MQ_REQUEST_MESSAGE);
-    mq_fd_request = mq_open (mq_name1, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr);
+    attrReq.mq_maxmsg  = MQ_MAX_MESSAGES;
+    attrReq.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE); 
+    int e = mq_fd_request = mq_open (mq_name1, O_WRONLY | O_CREAT | O_EXCL, 0600, &attrReq);
+    
+    attrRsp.mq_maxmsg  = MQ_MAX_MESSAGES;
+    attrRsp.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE);
+    int f = mq_fd_response = mq_open (mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attrRsp);
 
-    attr.mq_maxmsg  = MQ_MAX_MESSAGES;
-    attr.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE);
-    mq_fd_response = mq_open (mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr);
-
+    if (e > -1) printf("Request queue opened\n");
+    if (f > -1) printf("Response queue opened\n");
+    
     create_workers();
 
     //Do the farming
@@ -124,12 +124,12 @@ int main (int argc, char * argv[])
     }
 
     //Wait for children to finish
-    int status;
+    /*int status;
     int i;
-//    for (i = 0; i < NROF_WORKERS; i++) 
-//    {
-//        status = pthread_join (worker_pids[i], NULL);
-/*        if (status != 0)
+    for (i = 0; i < NROF_WORKERS; i++) 
+    {
+        status = pthread_join (worker_pids[i], NULL);
+        if (status != 0)
         {
             printf("An error occurred trying to join the workers");
         }

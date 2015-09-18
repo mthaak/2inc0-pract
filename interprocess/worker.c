@@ -91,9 +91,6 @@ int main (int argc, char * argv[])
     mq_name1 = argv[1];
     mq_name2 = argv[2];
     
-    printf("mq_name1 = %s", mq_name1);
-    printf("mq_name2 = %s", mq_name2);
-    
     // Open the two message queues
     mq_fd_request = mq_open(mq_name1, O_RDONLY);
     mq_fd_response = mq_open(mq_name2, O_WRONLY);
