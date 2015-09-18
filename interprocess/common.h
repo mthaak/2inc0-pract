@@ -24,7 +24,7 @@ typedef struct
 typedef struct
 {
     // a data structure for one row with x and y coordinates for each pixel
-    PIXEL_COORDINATE           coordinates[X_PIXEL];
+    double                     x[3];
 } MQ_REQUEST_MESSAGE;
 
 typedef struct

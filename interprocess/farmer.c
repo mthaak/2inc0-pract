@@ -30,7 +30,6 @@
 static char         mq_name1[80];
 static char         mq_name2[80];
 
-
 // ADDED
 pid_t worker_pids[NROF_WORKERS];
 
@@ -45,7 +44,6 @@ void create_workers(){
         } else {
             worker_pids[i] = workerPID;
             if (workerPID == 0){
-                printf("worker pid:%d\n", getpid());
                 execlp("./worker", "worker", mq_name1, mq_name2, NULL);
 
                 perror("execlp() failed");
@@ -76,7 +74,7 @@ int main (int argc, char * argv[])
     sprintf (mq_name2, "/mq_response_%s_%d", "MarkMartin", getpid());
 
     attrReq.mq_maxmsg  = MQ_MAX_MESSAGES;
-    attrReq.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE); 
+    attrReq.mq_msgsize = sizeof (MQ_REQUEST_MESSAGE); 
     int e = mq_fd_request = mq_open (mq_name1, O_WRONLY | O_CREAT | O_EXCL, 0600, &attrReq);
     
     attrRsp.mq_maxmsg  = MQ_MAX_MESSAGES;
@@ -86,12 +84,12 @@ int main (int argc, char * argv[])
     if (e > -1) printf("Request queue opened\n");
     if (f > -1) printf("Response queue opened\n");
     
-    create_workers();
+    //create_workers();
 
     //Do the farming
     int num_sent = 0;
     int num_received = 0;
-    while (num_sent < Y_PIXEL || num_received < Y_PIXEL)
+    while (num_received < Y_PIXEL)
     {
         mq_getattr(mq_fd_response, &attrRsp);
         mq_getattr(mq_fd_request, &attrReq);
@@ -106,18 +104,28 @@ int main (int argc, char * argv[])
             }
             num_received++;
         }
-        else if (true)//num_sent < 10)//attrReq.mq_curmsgs > 5)
+        else if (num_sent < 5)
         {
             //send request
             int j;
-            int code;
-            for (j = 0; j < X_PIXEL; j++)
-            {
-                req.coordinates[j].x = X_LOWERLEFT+(j*STEP);
-                req.coordinates[j].y = Y_LOWERLEFT+(num_sent*STEP);
+            printf("test");
+            /*for (j = 0; j < 3; j++){
+                req.x[j] = 5;
+                printf("%d", j);
+                //req.y[j] = Y_LOWERLEFT+(num_sent*STEP);
             }
+            req.x[0] = 1;
+            req.x[1] = 2;
+            req.x[2] = 3;*/
+            int code;
             code = mq_send(mq_fd_request, (char *) &req, sizeof(req), 0); 
-            //if (code < 0) { printf("An error occurred while sending request:%d\n", perror(""));}
+            if (code < 0) {
+                printf("An error occurred while sending request:");
+                printf("%d", errno);
+                perror("");
+            } else {
+                printf("Request send");
+            }
             num_sent++;
             //printf("Number of requests sent: %d\n", num_sent);
         }

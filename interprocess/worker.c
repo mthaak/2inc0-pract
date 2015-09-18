@@ -110,7 +110,7 @@ int main (int argc, char * argv[])
             printf("No jobs\n");
         }
 
-        printf("Received: x=%f, y=%f\n", req.coordinates[0].x, req.coordinates[0].y);
+        //printf("Received: x=%f, y=%f\n", req.x[0], req.y[0]);
 
         // Wait a random amount of time
         rsleep(5000);
@@ -118,7 +118,7 @@ int main (int argc, char * argv[])
         // Compute the madelbrot points
         int i;
         for (i = 0; i < X_PIXEL; i++) {
-            rsp.colors[i] = mandelbrot_point(req.coordinates[i].x, req.coordinates[i].y);
+            //rsp.colors[i] = mandelbrot_point(req.x[i], req.y[i]);
         } 
         
         // Write the results to a message queue
