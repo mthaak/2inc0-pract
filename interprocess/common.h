@@ -16,14 +16,14 @@
 
 typedef struct
 {
-    // a data structure with x and y coordinates
+    // a data structure for one pixel with x and y coordinates
     double                     x;
     double                     y;
 } PIXEL_COORDINATE;
 
 typedef struct
 {
-    // a data structure with x and y coordinates for one row
+    // a data structure for one row with x and y coordinates for each pixel
     PIXEL_COORDINATE           coordinates[X_PIXEL];
 } MQ_REQUEST_MESSAGE;
 
