@@ -91,8 +91,8 @@ int main (int argc, char * argv[])
     mq_name1 = argv[1];
     mq_name2 = argv[2];
     
-    printf("mq_name1 = %s", mq_name1);
-    printf("mq_name2 = %s", mq_name2);
+    //printf("mq_name1 = %s", mq_name1);
+    //printf("mq_name2 = %s", mq_name2);
     
     //Open the two message queues
     mq_fd_request = mq_open(mq_name1, O_RDONLY);
@@ -100,16 +100,17 @@ int main (int argc, char * argv[])
 
     //Repeatingly:
     while (1){
+	rsleep(10000000);
         //Read from a message queue the new job to do
         ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL);
         
         //  until there are no more jobs to do
         if (bytes_read < 1) {
-            printf("No more jobs\n");
-            break;
+            //printf("No more jobs\n");
+            //break;
         }
 
-        printf("Received: x=%f, y=%f\n", req.coordinates[0].x, req.coordinates[0].y);
+        //printf("Received: x=%f, y=%f\n", req.coordinates[0].x, req.coordinates[0].y);
 
         //Wait a random amount of time
         rsleep(500000);
@@ -123,7 +124,7 @@ int main (int argc, char * argv[])
         //Write the results to a message queue
         mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
         
-        printf("Send: k=%d\n", rsp.colors[0]);
+        //printf("Send: k=%d\n", rsp.colors[0]);
     } 
     
     //Close the message queues

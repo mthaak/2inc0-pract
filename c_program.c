@@ -294,8 +294,8 @@ message_queue_test (void)
     MQ_RESPONSE_MESSAGE rsp;
     struct mq_attr      attr;
 
-    sprintf (mq_name1, "/mq_request_%s_%d", STUDENT_NAME, getpid());
-    sprintf (mq_name2, "/mq_response_%s_%d", STUDENT_NAME, getpid());
+    sprintf (mq_name1, "/mq_request_%s_%d", "Mark", getpid());
+    sprintf (mq_name2, "/mq_response_%s_%d", "Mark", getpid());
 
     attr.mq_maxmsg  = 10;
     attr.mq_msgsize = sizeof (MQ_REQUEST_MESSAGE);

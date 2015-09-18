@@ -75,6 +75,8 @@ int main (int argc, char * argv[])
     
     sprintf (mq_name1, "/mq_request_%s_%d", "MarkMartin", getpid());
     sprintf (mq_name2, "/mq_response_%s_%d", "MarkMartin", getpid());
+//printf(mq_name1);
+//printf(mq_name2);
 
     attr.mq_maxmsg  = MQ_MAX_MESSAGES;
     attr.mq_msgsize = sizeof (MQ_REQUEST_MESSAGE);
@@ -93,8 +95,8 @@ int main (int argc, char * argv[])
     {
         mq_getattr(mq_fd_response, &attrRsp);
         mq_getattr(mq_fd_request, &attrReq);
-
-        if(attrRsp.mq_curmsgs > 0 && attrReq.mq_curmsgs > 5)
+        //printf("Messages in queue, %d, %d\n", (int) attrReq.mq_curmsgs, (int) attrRsp.mq_curmsgs);
+        if(false)//attrRsp.mq_curmsgs > 0)
         {
             //receive response
             ssize_t bytes_read = mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
@@ -104,17 +106,20 @@ int main (int argc, char * argv[])
             }
             num_received++;
         }
-        else
+        else if (true)//num_sent < 10)//attrReq.mq_curmsgs > 5)
         {
             //send request
             int j;
+            int code;
             for (j = 0; j < X_PIXEL; j++)
             {
                 req.coordinates[j].x = X_LOWERLEFT+(j*STEP);
                 req.coordinates[j].y = Y_LOWERLEFT+(num_sent*STEP);
-                mq_send(mq_fd_request, (char *) &req, sizeof(req), 0); 
             }
+            code = mq_send(mq_fd_request, (char *) &req, sizeof(req), 0); 
+            //if (code < 0) { printf("An error occurred while sending request:%d\n", perror(""));}
             num_sent++;
+            //printf("Number of requests sent: %d\n", num_sent);
         }
     }
 
