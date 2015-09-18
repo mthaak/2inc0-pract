@@ -94,43 +94,45 @@ int main (int argc, char * argv[])
     printf("mq_name1 = %s", mq_name1);
     printf("mq_name2 = %s", mq_name2);
     
-    //Open the two message queues
+    // Open the two message queues
     mq_fd_request = mq_open(mq_name1, O_RDONLY);
     mq_fd_response = mq_open(mq_name2, O_WRONLY);
 
-    //Repeatingly:
+    // Repeatingly:
     while (1){
-        //Read from a message queue the new job to do
+        // Read from a message queue the new job to do
         ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL);
         
         //  until there are no more jobs to do
         if (bytes_read < 1) {
-            printf("No more jobs\n");
-            break;
+            struct mq_attr attr; // if the message queue is unlinked, getattr returns -1
+            if (mq_getattr(mq_fd_request, &attr) == -1) {
+                printf("Request queue unlinked, terminating...\n");
+                break;
+            } 
+            printf("No jobs\n");
         }
 
         printf("Received: x=%f, y=%f\n", req.coordinates[0].x, req.coordinates[0].y);
 
-        //Wait a random amount of time
-        rsleep(500000);
+        // Wait a random amount of time
+        rsleep(5000);
 
-        //Compute the madelbrot points
+        // Compute the madelbrot points
         int i;
         for (i = 0; i < X_PIXEL; i++) {
             rsp.colors[i] = mandelbrot_point(req.coordinates[i].x, req.coordinates[i].y);
         } 
         
-        //Write the results to a message queue
+        // Write the results to a message queue
         mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
         
         printf("Send: k=%d\n", rsp.colors[0]);
     } 
     
-    //Close the message queues
+    // Close the message queues
     mq_close(mq_fd_request);
     mq_close(mq_fd_response);
 
     return (0);
-}
-
-
+} 
