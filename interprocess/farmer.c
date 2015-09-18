@@ -27,6 +27,9 @@
 #include "output.h"
 #include "common.h"
 
+static char         mq_name1[80];
+static char         mq_name2[80];
+
 
 // ADDED
 pid_t worker_pids[NROF_WORKERS];
@@ -43,7 +46,7 @@ void create_workers(){
             worker_pids[i] = workerPID;
             if (workerPID == 0){
                 printf("worker pid:%d\n", getpid());
-                execlp("worker", "worker", "", NULL);
+                execlp("./worker", "worker", mq_name1, mq_name2, NULL);
 
                 perror("execlp() failed");
             }
@@ -69,8 +72,6 @@ int main (int argc, char * argv[])
     struct mq_attr      attrReq;
     struct mq_attr      attrRsp;
     struct mq_attr      attr;
-    static char         mq_name1[80];
-    static char         mq_name2[80];
     
     sprintf (mq_name1, "/mq_request_%s_%d", "MarkMartin", getpid());
     sprintf (mq_name2, "/mq_response_%s_%d", "MarkMartin", getpid());
