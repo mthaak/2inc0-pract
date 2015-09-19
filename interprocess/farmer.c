@@ -54,7 +54,7 @@ int main (int argc, char * argv[])
         fprintf (stderr, "%s: invalid arguments\n", argv[0]);
     }
         
-    //output_init();
+    output_init();
 
     //Create the message queues & the children
     mqd_t               mq_fd_request;
@@ -90,11 +90,13 @@ int main (int argc, char * argv[])
 
     int total_send = 0;
     int total_received = 0;
+    int current_x = 0;
+    int current_y = -1;
     int j = 0;
     //while (total_received < Y_PIXEL)
-    while(j < 10)
+    while(total_received < (Y_PIXEL * X_PIXEL))
     {
-        printf("doing");
+        //printf("doing");
         mq_getattr(mq_fd_response, &attrRsp);
         mq_getattr(mq_fd_request, &attrReq);
 
@@ -103,8 +105,14 @@ int main (int argc, char * argv[])
         // Gives priority to the request queue if it is emptier than the response queue is full
         if (attrReq.mq_curmsgs < (MQ_MAX_MESSAGES - attrRsp.mq_curmsgs))
         {
+
             // Creates request
-            req.y = total_send;
+            req.x = total_send % X_PIXEL;
+            if ((total_send % X_PIXEL) == 0) {
+                current_y++;
+            }
+            req.y = current_y;
+
            
             // Sends request
             int code = mq_send(mq_fd_request, (char *) &req, sizeof(req), 0); 
@@ -114,9 +122,9 @@ int main (int argc, char * argv[])
             } else {
                 total_send++;
 
-                printf("Request send\n");
+                //printf("Request send\n");
             }
-        } else {
+        } else if (attrRsp.mq_curmsgs > 0) {
             // Receives response
             ssize_t bytes_read = mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
 
@@ -124,13 +132,13 @@ int main (int argc, char * argv[])
             {
                 // Draws pixels based on response
                 int i;
-                for (i = 0; i < X_PIXEL; i++) {
-                    output_draw_pixel(X_LOWERLEFT + (i * STEP), Y_LOWERLEFT + (rsp.y * STEP), rsp.k[i]);
-                }
-
+                //for (i = 0; i < X_PIXEL; i++) {
+                //    output_draw_pixel(X_LOWERLEFT + (i * STEP), Y_LOWERLEFT + (rsp.y * STEP), rsp.k[i]);
+                //}
+                output_draw_pixel(rsp.x, rsp.y, rsp.k);
                 total_received++;
 
-                printf("Response received: y=%f k=%d\n", rsp.y, rsp.k[0]);
+                //printf("Response received: y=%f k=%d\n", rsp.y, rsp.k);
             } else {
                 //printf("No reponse received\n");
             } 
@@ -151,7 +159,7 @@ int main (int argc, char * argv[])
     // Important notice: make sure that your message queues contain your
     // student name and the process id (to ensure uniqueness during testing)
     
-    //output_end();
+    output_end();
     
     return (0);
 }

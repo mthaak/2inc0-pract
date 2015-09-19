@@ -17,14 +17,16 @@
 typedef struct
 {
     // a data structure for one row
+    double                      x;
     double                      y;
 } MQ_REQUEST_MESSAGE;
 
 typedef struct
 {
     // a data structure for the color of pixels of one row
+    double                      x;
     double                      y;
-    int                         k[X_PIXEL];
+    int                         k;
 } MQ_RESPONSE_MESSAGE;
 
 

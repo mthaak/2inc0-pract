@@ -4,11 +4,11 @@
 // remove the comments for the output you like: either graphical (X11) output
 // or storage in a BMP file (or both)
 #define WITH_X11
-//#define WITH_BMP
+#define WITH_BMP
 
 // settings for interprocess communications
 // (note: be sure that /proc/sys/fs/mqueue/msg_max >= MQ_MAX_MESSAGES)
-#define NROF_WORKERS    10
+#define NROF_WORKERS    128
 #define MQ_MAX_MESSAGES 10
 
 // settings for the fractal computations
