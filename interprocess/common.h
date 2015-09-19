@@ -16,21 +16,15 @@
 
 typedef struct
 {
-    // a data structure for one pixel with x and y coordinates
-    double                     x;
-    double                     y;
-} PIXEL_COORDINATE;
-
-typedef struct
-{
-    // a data structure for one row with x and y coordinates for each pixel
-    double                     x[3];
+    // a data structure for one row
+    double                      y;
 } MQ_REQUEST_MESSAGE;
 
 typedef struct
 {
-    // a data structure with the k value of the mandelbrot point for one row of pixels
-    int                        colors[X_PIXEL];
+    // a data structure for the color of pixels of one row
+    double                      y;
+    int                         k[X_PIXEL];
 } MQ_RESPONSE_MESSAGE;
 
 

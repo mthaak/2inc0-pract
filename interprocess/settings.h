@@ -8,7 +8,7 @@
 
 // settings for interprocess communications
 // (note: be sure that /proc/sys/fs/mqueue/msg_max >= MQ_MAX_MESSAGES)
-#define NROF_WORKERS    64
+#define NROF_WORKERS    10
 #define MQ_MAX_MESSAGES 10
 
 // settings for the fractal computations

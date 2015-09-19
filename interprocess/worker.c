@@ -83,11 +83,13 @@ static void rsleep (int t)
 
 int main (int argc, char * argv[])
 {
+
     mqd_t                   mq_fd_request;
     mqd_t                   mq_fd_response;
     MQ_REQUEST_MESSAGE      req;
     MQ_RESPONSE_MESSAGE     rsp;
-    
+    struct mq_attr attr; 
+
     mq_name1 = argv[1];
     mq_name2 = argv[2];
     
@@ -95,37 +97,50 @@ int main (int argc, char * argv[])
     mq_fd_request = mq_open(mq_name1, O_RDONLY);
     mq_fd_response = mq_open(mq_name2, O_WRONLY);
 
+    if (mq_fd_request < 0) perror("Child cannot open request queue");
+    if (mq_fd_response < 0) perror("Child cannot open response queue"); 
+
+    int fail_counter = 0;
     // Repeatingly:
-    while (1){
+    do { 
         // Read from a message queue the new job to do
-        ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL);
-        
-        //  until there are no more jobs to do
-        if (bytes_read < 1) {
-            struct mq_attr attr; // if the message queue is unlinked, getattr returns -1
-            if (mq_getattr(mq_fd_request, &attr) == -1) {
-                printf("Request queue unlinked, terminating...\n");
-                break;
-            } 
-            printf("No jobs\n");
+        ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL); 
+
+        printf("%d: doing\n", getpid());
+        // If nothing is read
+        if (bytes_read < 1){
+            fail_counter++;
+            //usleep(100);
+            continue;
+        } else {
+            fail_counter = 0;
         }
-
-        //printf("Received: x=%f, y=%f\n", req.x[0], req.y[0]);
-
+        
+        rsleep(10000);
+        printf("%d: Worker received: y=%f\n", getpid(), req.y);
+        //printf("%d: bytes_read = %d\n", getpid(), bytes_read);
+        
         // Wait a random amount of time
-        rsleep(5000);
-
-        // Compute the madelbrot points
-        int i;
+        //rsleep(10000);
+        
+        // Compute the madelbrot points and create response
+        /*int i;
         for (i = 0; i < X_PIXEL; i++) {
-            //rsp.colors[i] = mandelbrot_point(req.x[i], req.y[i]);
+            rsp.y = req.y;
+            rsp.k[i] = mandelbrot_point(X_LOWERLEFT + (i * STEP), Y_LOWERLEFT + (req.y * STEP));
         } 
+        printf("inserted\n");*/
         
+        // Wait until there is room in the response queue
+        /*do {
+            mq_getattr(mq_fd_response, &attr);
+        } while(attr.mq_curmsgs >= MQ_MAX_MESSAGES);*/
+
         // Write the results to a message queue
-        mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
-        
-        printf("Send: k=%d\n", rsp.colors[0]);
-    } 
+        //mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
+    }  while (fail_counter < 10);
+
+    printf("%d: closed\n", getpid());
     
     // Close the message queues
     mq_close(mq_fd_request);
