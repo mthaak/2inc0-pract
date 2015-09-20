@@ -83,22 +83,23 @@ static void rsleep (int t)
 
 int main (int argc, char * argv[])
 {
-
+    // Declarations
     mqd_t                   mq_fd_request;
     mqd_t                   mq_fd_response;
     MQ_REQUEST_MESSAGE      req;
     MQ_RESPONSE_MESSAGE     rsp;
     struct mq_attr attr; 
 
+    // Gets the message queue names from the (command line) arguments
     mq_name1 = argv[1];
     mq_name2 = argv[2];
     
-    // Open the two message queues
+    // Opens the request and response queue 
     mq_fd_request = mq_open(mq_name1, O_RDONLY);
     mq_fd_response = mq_open(mq_name2, O_WRONLY);
 
-    if (mq_fd_request < 0) perror("Child cannot open request queue");
-    if (mq_fd_response < 0) perror("Child cannot open response queue"); 
+    if (mq_fd_request < 0) perror("Worker could not open request queue");
+    if (mq_fd_response < 0) perror("Worker could not open response queue"); 
 
     int fail_counter = 0;
     // Repeatingly:
@@ -106,47 +107,39 @@ int main (int argc, char * argv[])
         // Read from a message queue the new job to do
         ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL); 
 
-        //printf("%d: doing\n", getpid());
-        // If nothing is read
+        // Tests if a message has been read
         if (bytes_read < 1){
             fail_counter++;
-            //usleep(100);
+            usleep(100);
             continue;
         } else {
             fail_counter = 0;
         }
-        
-        rsleep(10000);
-        //printf("%d: Worker received: y=%f\n", getpid(), req.y);
-        //printf("%d: bytes_read = %d\n", getpid(), bytes_read);
-        
+    
         // Wait a random amount of time
-        //rsleep(10000);
+        rsleep(10000);
         
         // Compute the madelbrot points and create response
         int i;
-        //for (i = 0; i < X_PIXEL; i++) {
+        for (i = 0; i < X_PIXEL; i++) {
             rsp.y = req.y;
-rsp.x = req.x;
-            rsp.k = mandelbrot_point(X_LOWERLEFT + (req.x * STEP), Y_LOWERLEFT + (req.y * STEP));
-        //} 
-        //printf("inserted\n");
+            rsp.k[i] = mandelbrot_point(X_LOWERLEFT + (i * STEP), Y_LOWERLEFT + (req.y * STEP));
+        } 
         
         // Wait until there is room in the response queue
-        /*do {
+        do {
             mq_getattr(mq_fd_response, &attr);
-        } while(attr.mq_curmsgs >= MQ_MAX_MESSAGES);*/
+        } while (attr.mq_curmsgs >= MQ_MAX_MESSAGES);
 
         // Write the results to a message queue
-        mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
-    }  while (fail_counter < 100);
+        int code = mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
+        if (code < 0) perror("Worker could not send response");
+        
+    }  while (fail_counter < 10);
 
-    printf("%d: closed\n", getpid());
-    
     // Close the message queues
     mq_close(mq_fd_request);
     mq_close(mq_fd_response);
 
     return (0);
-} 
-
+}

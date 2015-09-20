@@ -56,7 +56,7 @@ int main (int argc, char * argv[])
         
     output_init();
 
-    //Create the message queues & the children
+    // Declarations
     mqd_t               mq_fd_request;
     mqd_t               mq_fd_response;
     MQ_REQUEST_MESSAGE  req;
@@ -64,103 +64,69 @@ int main (int argc, char * argv[])
     struct mq_attr      attrReq;
     struct mq_attr      attrRsp;
     
+    // Sets message queue names
     sprintf (mq_name1, "/mq_request_%s_%d", "MarkMartin", getpid());
     sprintf (mq_name2, "/mq_response_%s_%d", "MarkMartin", getpid());
-    printf("mq_name1 = ");
-    //printf(mq_name1);
-    printf("\n");
-    printf("mq_name2 = ");
-    //printf(mq_name2);
-    printf("\n");
 
+    // Opens the request queue
     attrReq.mq_maxmsg  = MQ_MAX_MESSAGES;
     attrReq.mq_msgsize = sizeof (MQ_REQUEST_MESSAGE); 
     mq_fd_request = mq_open (mq_name1, O_WRONLY | O_CREAT | O_EXCL, 0600, &attrReq);
     
+    // Opens the response queue
     attrRsp.mq_maxmsg  = MQ_MAX_MESSAGES;
     attrRsp.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE);
     mq_fd_response = mq_open (mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attrRsp);
 
-    if (mq_fd_request > -1) printf("Request queue opened\n");
-    else perror("Request queue could not be opened");
-    if (mq_fd_response > -1) printf("Response queue opened\n");
-    else perror("Response queue could not be opened");
+    if (mq_fd_request < 0) perror("Farmer could not open request queue");
+    if (mq_fd_response < 0) perror("Farmer could not open response queue");
     
+    // Creates NROF_WORKERS by forking
     create_workers();
 
     int total_send = 0;
     int total_received = 0;
-    int current_x = 0;
-    int current_y = -1;
-    int j = 0;
-    //while (total_received < Y_PIXEL)
-    while(total_received < (Y_PIXEL * X_PIXEL))
+    while (total_received < Y_PIXEL)  // loop until all rows have been received
     {
-        //printf("doing");
+        // Gets attributes of the request and response queue        
         mq_getattr(mq_fd_response, &attrRsp);
         mq_getattr(mq_fd_request, &attrReq);
 
-        //printf("Messages in queue, %d, %d\n", (int) attrReq.mq_curmsgs, (int) attrRsp.mq_curmsgs);
-        
         // Gives priority to the request queue if it is emptier than the response queue is full
         if (attrReq.mq_curmsgs < (MQ_MAX_MESSAGES - attrRsp.mq_curmsgs))
         {
-
             // Creates request
-            req.x = total_send % X_PIXEL;
-            if ((total_send % X_PIXEL) == 0) {
-                current_y++;
-            }
-            req.y = current_y;
-
+            req.y = total_send;
            
             // Sends request
             int code = mq_send(mq_fd_request, (char *) &req, sizeof(req), 0); 
+            if (code < 0) perror("Farmer could not send request");
 
-            if (code < 0) {
-                perror("An error occurred while sending request");
-            } else {
-                total_send++;
-
-                //printf("Request send\n");
-            }
-        } else if (attrRsp.mq_curmsgs > 0) {
+            total_send++; 
+        } else if (attrRsp.mq_curmsgs > 0)
+        {
             // Receives response
             ssize_t bytes_read = mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
+            if (bytes_read < 1) perror("Farmer could not receive response");
 
-            if (bytes_read > 0) // Tests if a response has been received
-            {
-                // Draws pixels based on response
-                int i;
-                //for (i = 0; i < X_PIXEL; i++) {
-                //    output_draw_pixel(X_LOWERLEFT + (i * STEP), Y_LOWERLEFT + (rsp.y * STEP), rsp.k[i]);
-                //}
-                output_draw_pixel(rsp.x, rsp.y, rsp.k);
-                total_received++;
+            // Draws pixels based on response
+            int i;
+            for (i = 0; i < X_PIXEL; i++) {
+                output_draw_pixel(i, rsp.y, rsp.k[i]);
+            }
 
-                //printf("Response received: y=%f k=%d\n", rsp.y, rsp.k);
-            } else {
-                //printf("No reponse received\n");
-            } 
-        }
-
-        j++;
-
+            total_received++;
+        } 
+        
     }
-    printf("ended");
-
+    
     // Cleans up the message queues
-    usleep(1);
     mq_close (mq_fd_response);
     mq_close (mq_fd_request);
     mq_unlink (mq_name1);
     mq_unlink (mq_name2);
 
-    // Important notice: make sure that your message queues contain your
-    // student name and the process id (to ensure uniqueness during testing)
-    
     output_end();
     
     return (0);
 }
-

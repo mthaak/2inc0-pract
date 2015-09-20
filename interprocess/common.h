@@ -11,24 +11,19 @@
 
 #include "settings.h"
 
-
 // TODO: put your definitions of the datastructures here
 
 typedef struct
 {
     // a data structure for one row
-    double                      x;
     double                      y;
 } MQ_REQUEST_MESSAGE;
 
 typedef struct
 {
     // a data structure for the color of pixels of one row
-    double                      x;
     double                      y;
-    int                         k;
+    int                         k[X_PIXEL];
 } MQ_RESPONSE_MESSAGE;
 
-
 #endif
-
