@@ -106,16 +106,16 @@ int main (int argc, char * argv[])
     do { 
         // Read from a message queue the new job to do
         ssize_t bytes_read = mq_receive(mq_fd_request, (char *) &req, sizeof(req), NULL); 
-
+        
         // Tests if a message has been read
-        if (bytes_read < 1){
+        if (bytes_read < sizeof(req)){
             fail_counter++;
             usleep(100);
             continue;
         } else {
             fail_counter = 0;
-        }
-    
+        } 
+        
         // Wait a random amount of time
         rsleep(10000);
         
@@ -131,7 +131,7 @@ int main (int argc, char * argv[])
             mq_getattr(mq_fd_response, &attr);
         } while (attr.mq_curmsgs >= MQ_MAX_MESSAGES);
 
-        // Write the results to a message queue
+        // Write the results to the reponse queue
         int code = mq_send(mq_fd_response, (char *) &rsp, sizeof(rsp), 0); 
         if (code < 0) perror("Worker could not send response");
         

@@ -30,6 +30,8 @@
 static char mq_name1[80];
 static char mq_name2[80];
 
+int worker_pids[NROF_WORKERS];
+
 void create_workers(){
     int i;
     for (i = 0; i < NROF_WORKERS; i++){
@@ -40,9 +42,18 @@ void create_workers(){
             exit(1);
         } else if (workerPID == 0) { 
             execlp("./worker", "worker", mq_name1, mq_name2, NULL);
-
+            
             perror("execlp() failed");
-        } 
+        } else if (workerPID > 0){
+            worker_pids[i] = workerPID;
+        }
+    }
+}
+
+void kill_workers(){
+    int i;
+    for (i = 0; i < NROF_WORKERS; i++){
+        kill(worker_pids[i], SIGKILL);
     }
 }
 
@@ -93,7 +104,9 @@ int main (int argc, char * argv[])
         mq_getattr(mq_fd_request, &attrReq);
 
         // Gives priority to the request queue if it is emptier than the response queue is full
-        if (attrReq.mq_curmsgs < (MQ_MAX_MESSAGES - attrRsp.mq_curmsgs))
+        if (attrReq.mq_curmsgs < (MQ_MAX_MESSAGES - attrRsp.mq_curmsgs) 
+                && attrReq.mq_curmsgs < MQ_MAX_MESSAGES
+                && total_send < Y_PIXEL)
         {
             // Creates request
             req.y = total_send;
@@ -103,6 +116,7 @@ int main (int argc, char * argv[])
             if (code < 0) perror("Farmer could not send request");
 
             total_send++; 
+
         } else if (attrRsp.mq_curmsgs > 0)
         {
             // Receives response
@@ -114,12 +128,15 @@ int main (int argc, char * argv[])
             for (i = 0; i < X_PIXEL; i++) {
                 output_draw_pixel(i, rsp.y, rsp.k[i]);
             }
-
+            
             total_received++;
         } 
         
     }
     
+    // Kills are workers by their pid
+    kill_workers();
+
     // Cleans up the message queues
     mq_close (mq_fd_response);
     mq_close (mq_fd_request);
@@ -127,6 +144,6 @@ int main (int argc, char * argv[])
     mq_unlink (mq_name2);
 
     output_end();
-    
+
     return (0);
 }
