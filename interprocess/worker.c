@@ -138,8 +138,8 @@ int main (int argc, char * argv[])
     }  while (fail_counter < 10);
 
     // Close the message queues
-    mq_close(mq_fd_request);
-    mq_close(mq_fd_response);
+    if (mq_close(mq_fd_request) < 0) perror("Worker could not close request queue");
+    if (mq_close(mq_fd_response) < 0) perror("Worker could not close response queue");
 
     return (0);
 }

@@ -32,31 +32,8 @@ static char mq_name2[80];
 
 int worker_pids[NROF_WORKERS];
 
-void create_workers(){
-    int i;
-    for (i = 0; i < NROF_WORKERS; i++){
-        pid_t workerPID;
-        workerPID = fork();
-        if (workerPID < 0){
-            perror("fork() failed");
-            exit(1);
-        } else if (workerPID == 0) { 
-            execlp("./worker", "worker", mq_name1, mq_name2, NULL);
-            
-            perror("execlp() failed");
-        } else if (workerPID > 0){
-            worker_pids[i] = workerPID;
-        }
-    }
-}
-
-void kill_workers(){
-    int i;
-    for (i = 0; i < NROF_WORKERS; i++){
-        kill(worker_pids[i], SIGKILL);
-    }
-}
-
+void create_workers();
+void kill_workers();
 
 int main (int argc, char * argv[])
 {
@@ -89,8 +66,16 @@ int main (int argc, char * argv[])
     attrRsp.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE);
     mq_fd_response = mq_open (mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attrRsp);
 
-    if (mq_fd_request < 0) perror("Farmer could not open request queue");
-    if (mq_fd_response < 0) perror("Farmer could not open response queue");
+    if (mq_fd_request < 0) 
+    {
+        perror("Farmer could not open request queue");
+        exit(1);
+    }
+    if (mq_fd_response < 0)
+    {
+        perror("Farmer could not open response queue");
+        exit(1);
+    }
     
     // Creates NROF_WORKERS by forking
     create_workers();
@@ -102,11 +87,12 @@ int main (int argc, char * argv[])
         // Gets attributes of the request and response queue        
         mq_getattr(mq_fd_response, &attrRsp);
         mq_getattr(mq_fd_request, &attrReq);
+        int rsp_msgs = attrRsp.mq_curmsgs;
+        int req_msgs = attrReq.mq_curmsgs;
 
-        // Gives priority to the request queue if it is emptier than the response queue is full
-        if (attrReq.mq_curmsgs < (MQ_MAX_MESSAGES - attrRsp.mq_curmsgs) 
-                && attrReq.mq_curmsgs < MQ_MAX_MESSAGES
-                && total_send < Y_PIXEL)
+        // REQUEST CODE
+        if (req_msgs < MQ_MAX_MESSAGES
+            && total_send < Y_PIXEL)
         {
             // Creates request
             req.y = total_send;
@@ -117,7 +103,10 @@ int main (int argc, char * argv[])
 
             total_send++; 
 
-        } else if (attrRsp.mq_curmsgs > 0)
+        }
+        
+        // RESPONSE CODE
+        if (rsp_msgs > 0)
         {
             // Receives response
             ssize_t bytes_read = mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
@@ -137,13 +126,39 @@ int main (int argc, char * argv[])
     // Kills are workers by their pid
     kill_workers();
 
-    // Cleans up the message queues
-    mq_close (mq_fd_response);
-    mq_close (mq_fd_request);
-    mq_unlink (mq_name1);
-    mq_unlink (mq_name2);
+    // Cleans up the message queues 
+    if (mq_close (mq_fd_request) < 0) perror("Farmer could not close request queue");
+    if (mq_close (mq_fd_response) < 0) perror("Farmer could not close response queue");
+    if (mq_unlink (mq_name1) < 0) perror("Farmer could not unlink request queue");
+    if (mq_unlink (mq_name2) < 0) perror("Farmer could not unlink response queue");
 
     output_end();
 
     return (0);
+}
+
+void create_workers(){
+    int i;
+    for (i = 0; i < NROF_WORKERS; i++){
+        pid_t workerPID;
+        workerPID = fork();
+        if (workerPID < 0){
+            perror("fork() failed");
+            exit(1);
+        } else if (workerPID == 0) { 
+            execlp("./worker", "worker", mq_name1, mq_name2, NULL);
+            
+            perror("execlp() failed");
+        } else if (workerPID > 0){
+            worker_pids[i] = workerPID;
+        }
+    }
+}
+
+void kill_workers(){
+    int i;
+    for (i = 0; i < NROF_WORKERS; i++){
+        int code = kill(worker_pids[i], SIGKILL);
+        if (code < 0) perror("kill() failed");
+    }
 }
