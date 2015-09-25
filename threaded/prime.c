@@ -37,6 +37,7 @@ typedef unsigned long long  MY_TYPE;
 // declare a mutex, and it is initialized as well
 static pthread_mutex_t      mutex          = PTHREAD_MUTEX_INITIALIZER;
 
+void strike_out_multiples(int base);
 void print_buffer();
 static void rsleep (int t);
 
@@ -60,15 +61,7 @@ int main (void)
     int k;
     for (k = 2; k <= NROF_SIEVE; k++) {
         printf("evaluating multiples of %d\n", k);
-        int multiple;
-        multiple = 2 * k;
-        while (multiple <= NROF_SIEVE) {
-            
-            
-            printf("setting %d to 0\n", multiple);
-            BIT_CLEAR(buffer[(multiple / 64)], multiple % 64);
-            multiple += k;
-        }
+        strike_out_multiples(k);
     }
 
     //output all primes
@@ -81,6 +74,16 @@ int main (void)
     }
 
     return (0);
+}
+
+void strike_out_multiples(int base) {
+    int multiple;
+    multiple = 2 * base;
+    while (multiple <= NROF_SIEVE) {
+        printf("setting %d to 0\n", multiple);
+        BIT_CLEAR(buffer[(multiple / 64)], multiple % 64);
+        multiple += base;
+    }
 }
 
 void print_buffer() 
