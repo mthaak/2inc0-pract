@@ -34,14 +34,15 @@ typedef unsigned long long  MY_TYPE;
 // clear bit n in v
 #define BIT_CLEAR(v,n)      ((v) =  (v) & ~BITMASK(n))
 
-// declare a mutex, and it is initialized as well
-static pthread_mutex_t      mutex          = PTHREAD_MUTEX_INITIALIZER;
-
-void strike_out_multiples(int base);
+void strike_out_multiples(void * arg);
 void print_buffer();
 static void rsleep (int t);
 
-int ints_in_buffer;
+int ints_in_buffer; //the number of 64 bit numbers in the buffer
+
+static pthread_mutex_t      mutex[(NROF_SIEVE/64) + 1]; //an array of mutexes
+pthread_t                   thread_ids[NROF_THREADS]; //array of threadids  
+int                         parameters[NROF_THREADS]; //array with fields for parameters
 
 int main (void)
 {
@@ -49,6 +50,12 @@ int main (void)
     // (see thread_malloc_free_test() and thread_mutex_test() how to use threads and mutexes,
     //  see bit_test() how to manipulate bits in a large integer)
     ints_in_buffer = (NROF_SIEVE/64) + 1;
+
+    //initialise mutexes
+    int mutex_index;
+    for (mutex_index = 0; mutex_index < ints_in_buffer; mutex_index++) {
+        pthread_mutex_init(&mutex[mutex_index], NULL);
+    }
 
     //set all bits to 1
     int i;
@@ -59,29 +66,42 @@ int main (void)
     print_buffer();
 
     int k;
-    for (k = 2; k <= NROF_SIEVE; k++) {
+    k = 2;
+    while (k <= NROF_SIEVE) {
         printf("evaluating multiples of %d\n", k);
-        strike_out_multiples(k);
+        if (BIT_IS_SET(buffer[(k / 64)], k % 64)) {
+            parameters[0] = k;
+            pthread_create (&thread_ids[0], NULL, strike_out_multiples, &parameters[0]);
+            pthread_join (thread_ids[0], NULL);
+        }
+        k++;
     }
 
     //output all primes
     int j;
     for (j = 2; j <= NROF_SIEVE; j++) {
-        if (BIT_IS_SET(buffer[(j / 64)], j % 64))
-        {
+        if (BIT_IS_SET(buffer[(j / 64)], j % 64)) {
             printf("%d\n", j);
         }
     }
 
+    print_buffer();
+
     return (0);
 }
 
-void strike_out_multiples(int base) {
+void strike_out_multiples(void * arg) {
+    int *argi;
+    int base;
     int multiple;
+    argi = (int *) arg;     
+    base = *argi;
     multiple = 2 * base;
     while (multiple <= NROF_SIEVE) {
         printf("setting %d to 0\n", multiple);
+        pthread_mutex_lock (&mutex[multiple/64]); //entering critical section
         BIT_CLEAR(buffer[(multiple / 64)], multiple % 64);
+        pthread_mutex_unlock (&mutex[multiple/64]); //leaving critical section
         multiple += base;
     }
 }
