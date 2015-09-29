@@ -20,7 +20,17 @@
 #include <errno.h>
 #include <pthread.h>
 #include "prime.h"
+
 typedef unsigned long long  MY_TYPE;
+
+//For bookkeeping about threads
+typedef struct {
+    pthread_t                   thread_id;  
+    int                         parameter; 
+    bool                        finished;
+    int                         array_index; //index of array when put in thread_collection
+    bool			slot_used; //is the slot used (running or waiting to be joined)
+} THREAD_CONSTRUCT;
 
 // create a bitmask where bit at position n is set
 #define BITMASK(n)          (((MY_TYPE) 1) << (n))
@@ -41,16 +51,12 @@ static void rsleep (int t);
 
 int ints_in_buffer; //the number of 64 bit numbers in the buffer
 
-static pthread_mutex_t          mutex[(NROF_SIEVE/64) + 1]; //an array of mutexes
-static pthread_mutex_t          supermutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t          mutex[(NROF_SIEVE/64) + 1]; //an array of mutexes (1 per 64bit number)
 
-THREAD_CONSTRUCT                thread_collection[NROF_THREADS];
+THREAD_CONSTRUCT                thread_collection[NROF_THREADS]; //structure with bookkeeping of all threads
 
 int main (void)
 {
-    // TODO: start threads generate all primes between 2 and NROF_SIEVE and output the results
-    // (see thread_malloc_free_test() and thread_mutex_test() how to use threads and mutexes,
-    //  see bit_test() how to manipulate bits in a large integer)
     ints_in_buffer = (NROF_SIEVE/64) + 1;
 
     //initialise mutexes
@@ -59,37 +65,41 @@ int main (void)
         pthread_mutex_init(&mutex[mutex_index], NULL);
     }
 
-    //set all bits to 1
+    //set all bits in buffer to 1 (all prime)
     int i;
     for (i = 0; i < ints_in_buffer; i++) {
         buffer[i] = ~0;
     }
-
-    //print_buffer();
+ 
+    //set all thread slots as not used
+    for (i = 0; i < NROF_THREADS; i++) {
+        thread_collection[i].slot_used = false;
+    }
 
     int k; //number of threads started
     k = 0;
     int current_base;
     current_base = 2;
-    while (k < NROF_THREADS && current_base <= NROF_SIEVE) {
-        pthread_mutex_lock(&supermutex);
+    while (k < NROF_THREADS && current_base <= NROF_SIEVE) { //start up all threads
         if (BIT_IS_SET(buffer[(current_base / 64)], current_base % 64)) {
             strike_out_multiples(current_base, k);
             k++;
         }
         current_base++;
-        pthread_mutex_unlock(&supermutex);
     }
 
     bool found_base;
-    while (current_base <= NROF_SIEVE) {
-        for (i = 0; i < NROF_THREADS; i++) {
-            if (thread_collection[i].finished == true) {
+    while (current_base <= NROF_SIEVE) { //until finished starting up threads...
+        for (i = 0; i < NROF_THREADS; i++) { //...find a thread that has finished and start a new one
+            if (thread_collection[i].finished == true) { //found finished thread
                 pthread_join (thread_collection[i].thread_id, NULL);
+                thread_collection[i].slot_used = false;
+                
+                //search for next suitable (prime) base
                 found_base = false;
                 while (found_base == false && current_base <= NROF_SIEVE) {
                     if (BIT_IS_SET(buffer[(current_base / 64)], current_base % 64)) {
-                        strike_out_multiples(current_base, k);
+                        strike_out_multiples(current_base, i); //start a new thread
                         found_base = true;
                     }
                     current_base++;
@@ -98,54 +108,59 @@ int main (void)
         }
     }
 
-    for (i = 0; i < NROF_THREADS; i++) {
-        pthread_join (thread_collection[i].thread_id, NULL);
+    for (i = 0; i < NROF_THREADS; i++) { //join (and wait for) all the threads that are used
+        if (thread_collection[i].slot_used == true) {
+            pthread_join (thread_collection[i].thread_id, NULL);
+        }
     }
-
+ 
     //output all primes
     int primes_found = 0;
     int j;
     for (j = 2; j <= NROF_SIEVE; j++) {
         if (BIT_IS_SET(buffer[(j / 64)], j % 64)) {
-            //printf("%d\n", j);
+            printf("%d\n", j);
             primes_found++;
         }
     }
-    printf("Found %d primes\n", primes_found);
 
-    //print_buffer();
+    //printf("Found %d primes\n", primes_found);
 
     return (0);
 }
 
+//sets up bookkeeping and starts a new thread
 void strike_out_multiples(int base, int index) {
-    //printf("evaluating multiples of %d\n", base);
     thread_collection[index].parameter = base;
     thread_collection[index].finished = false;
     thread_collection[index].array_index = index;
+    thread_collection[index].slot_used = true;
     pthread_create (&thread_collection[index].thread_id, NULL, strike_out_thread, &thread_collection[index].array_index);
 }
 
+//The code executed in the thread
 void strike_out_thread(void * arg) {
+    //bookkeeping
     int *argi;
     int base;
     int multiple;
     argi = (int *) arg;  
     int thread_index = *argi;
     base = thread_collection[thread_index].parameter;
+
+    //strike out all multiples
     multiple = 2 * base;
     while (multiple <= NROF_SIEVE) {
-        //printf("setting %d to 0 as multiple of %d\n", multiple, base);
         pthread_mutex_lock (&mutex[multiple/64]); //entering critical section
         BIT_CLEAR(buffer[(multiple / 64)], multiple % 64);
         pthread_mutex_unlock (&mutex[multiple/64]); //leaving critical section
         multiple += base;
-        //rsleep(10);
+        rsleep(100);
     }
     thread_collection[thread_index].finished = true;
 }
 
-void print_buffer() //for testing purposes
+void print_buffer() //for testing purposes, prints all the 64 bit ints in buffer
 {
     int i;
     for (i = 0; i < ints_in_buffer; i++) {

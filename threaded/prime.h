@@ -16,16 +16,11 @@
 /**
  * NROF_THREADS: number of threads that will run in parallel (only for assignment "Threaded Application")
  */
-#define NROF_THREADS        1
+#define NROF_THREADS        50
 
 /**
  * buffer[]: datastructure of the sieve; each number is represented by one bit
  */
 static unsigned long long   buffer [(NROF_SIEVE/64) + 1];
 
-typedef struct {
-    pthread_t                   thread_id;  
-    int                         parameter; 
-    bool                        finished;
-    int                         array_index;
-} THREAD_CONSTRUCT;
+
