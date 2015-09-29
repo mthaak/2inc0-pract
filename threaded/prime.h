@@ -11,7 +11,7 @@
  * NROF_SIEVE: size of the sieve
  * (value must be between 1 and 15485864 (such that primes.txt can be used for checking))
  */
-#define NROF_SIEVE          20
+#define NROF_SIEVE          1000
 
 /**
  * NROF_THREADS: number of threads that will run in parallel (only for assignment "Threaded Application")
@@ -23,3 +23,9 @@
  */
 static unsigned long long   buffer [(NROF_SIEVE/64) + 1];
 
+typedef struct {
+    pthread_t                   thread_id;  
+    int                         parameter; 
+    bool                        finished;
+    int                         array_index;
+} THREAD_CONSTRUCT;
