@@ -11,12 +11,12 @@
  * NROF_SIEVE: size of the sieve
  * (value must be between 1 and 15485864 (such that primes.txt can be used for checking))
  */
-#define NROF_SIEVE          1000
+#define NROF_SIEVE          3000
 
 /**
  * NROF_THREADS: number of threads that will run in parallel (only for assignment "Threaded Application")
  */
-#define NROF_THREADS        50
+#define NROF_THREADS        1
 
 /**
  * buffer[]: datastructure of the sieve; each number is represented by one bit

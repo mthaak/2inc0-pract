@@ -45,7 +45,7 @@ typedef struct {
 #define BIT_CLEAR(v,n)      ((v) =  (v) & ~BITMASK(n))
 
 void strike_out_multiples(int base, int index);
-void strike_out_thread(void * arg);
+void * strike_out_thread(void * arg);
 void print_buffer();
 static void rsleep (int t);
 
@@ -139,7 +139,7 @@ void strike_out_multiples(int base, int index) {
 }
 
 //The code executed in the thread
-void strike_out_thread(void * arg) {
+void * strike_out_thread(void * arg) {
     //bookkeeping
     int *argi;
     int base;
@@ -155,9 +155,10 @@ void strike_out_thread(void * arg) {
         BIT_CLEAR(buffer[(multiple / 64)], multiple % 64);
         pthread_mutex_unlock (&mutex[multiple/64]); //leaving critical section
         multiple += base;
-        rsleep(100);
+        //rsleep(100);
     }
     thread_collection[thread_index].finished = true;
+    return 0;
 }
 
 void print_buffer() //for testing purposes, prints all the 64 bit ints in buffer
