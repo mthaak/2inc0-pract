@@ -2,8 +2,8 @@
  * Operating Systems  (2INC0)  Practical Assignment
  * Condition Variables Application
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Mark Bouwman (0868533)
+ * Martin ter Haak (0846351)
  *
  * Grading:
  * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 
@@ -18,7 +18,6 @@
 #include <unistd.h>
 #include <string.h> // for to_binary
 #include <pthread.h>
-
 #include "prodcons.h"
 
 /* buffer[]
@@ -29,13 +28,26 @@ static ITEM     buffer [BUFFER_SIZE];
 
 /* number of items currently in buffer */
 static int      in_buffer = 0;
-/* whether producer is ready */
-static bool     finished = false;
+
+/* two 'pointers' to the position in the buffer */
+int read_pointer = 0;
+int write_pointer = 0;
+
+/* whether all items are consumed */
+static bool     consumer_finished = false;
 
 static pthread_mutex_t              mutex                       = PTHREAD_MUTEX_INITIALIZER;
+
+/* condition variable used to signal producer */
 static pthread_cond_t               prod_cond                   = PTHREAD_COND_INITIALIZER;
+
+/* condition variable to let producer know all items are consumed */
+static pthread_cond_t               cons_finish                 = PTHREAD_COND_INITIALIZER;
+
+/* condition variable to signal the various consumers */
 static pthread_cond_t               cons_cond[NROF_CONSUMERS];
 
+/* several operations to add or extract information from an item */
 #define ITEM_MASK(seq_nr, dest)     (((seq_nr) << NROF_BITS_DEST) | dest)
 #define ITEM_TO_SEQ(mask)           (mask >> NROF_BITS_DEST)
 #define ITEM_TO_DEST(mask)          (mask & ((1 << NROF_BITS_DEST) - 1)
@@ -48,46 +60,47 @@ const char *to_binary(int x);
 static void * producer (void * arg)
 {
     ITEM    item;   // a produced item
-    int total_produced = 0;
+    int total_produced = 1;
     
-    while (total_produced < NROF_ITEMS)
+    while (total_produced <= NROF_ITEMS)
     {
         rsleep (PRODUCER_SLEEP_FACTOR);
         
         // produce new item
         short int dest_nr = rand() % NROF_CONSUMERS;
-        item = ITEM_MASK(total_produced + 1, dest_nr); 
+        item = ITEM_MASK(total_produced, dest_nr); 
        
-        // mutex-lock;
         pthread_mutex_lock(&mutex); 
         // while not condition-for-this-producer
         while (in_buffer >= BUFFER_SIZE)
         {
-            // wait-cv;
             pthread_cond_wait(&prod_cond, &mutex);
         }
-        // put item into buffer
-        buffer[in_buffer] = item;
+        buffer[write_pointer] = item; // put item into buffer
+        printf("%04x\n", item); // print the item
+        write_pointer = (write_pointer + 1) % BUFFER_SIZE; // point write pointer to next element in circular buffer
         in_buffer++;
-        printf("Producer: item %d produced for %d (%s)\n", total_produced, dest_nr, to_binary(item));
-        // possible-cv-signals;
-        pthread_cond_signal(&cons_cond[dest_nr]);
+        //printf("Producer: item %d produced for %d (%s)\n", total_produced, dest_nr, to_binary(item));
+        if (in_buffer == 1) { // signal consumer if buffer was empty
+            //printf("signal from producer to %d\n", dest_nr);
+            pthread_cond_signal(&cons_cond[dest_nr]);
+
+        }
         // mutex-unlock;
         pthread_mutex_unlock(&mutex); 
-        
         total_produced++;
-        
-        // apply this printf at the correct location in that pseudocode:
-        //printf("%04x\n", item); // write info to stdout
     }
     
-    // * inform consumers that we're ready
-    finished = true;
-    int i = 0;
-    for (i = 0; i < NROF_CONSUMERS; i++)
-    { 
-        pthread_cond_signal(&cons_cond[i]);
+    // inform consumers that we're ready
+    pthread_mutex_lock(&mutex);
+    while (consumer_finished == false) { // wait for the consumers to finish
+        pthread_cond_wait(&cons_finish, &mutex); 
     }
+    int i = 0;
+    for (i = 0; i < NROF_CONSUMERS; i++) { // signall all consumers
+        pthread_cond_signal(&cons_cond[i]); 
+    }
+    pthread_mutex_unlock(&mutex);
 
     return(arg);
 }
@@ -100,30 +113,41 @@ static void * consumer (void * arg)
     
     id = (int) arg; 
 
-    while (in_buffer > 0 || !finished)
+    while (!consumer_finished)
     {
         rsleep (100 * NROF_CONSUMERS);
 
-        // mutex-lock;
         pthread_mutex_lock(&mutex);
         // while not condition-for-this-consumer
-        
-        while (in_buffer <= 0 && !finished) {
+        while ((in_buffer <= 0) || consumer_finished || (ITEM_TO_DEST(buffer[read_pointer])) != id)) {
             // wait-cv;
+            if (consumer_finished) { // finish thread if we are finished
+                pthread_mutex_unlock(&mutex); return(arg);
+            }
             pthread_cond_wait(&cons_cond[id], &mutex);
         } 
-        // critical-section;
-        // get the next item from buffer[] (intended for this customer)
-        item = buffer[in_buffer - 1];
+        // get the next item from buffer (intended for this customer)
+        item = buffer[read_pointer];
+        printf("%*s    C%d:%04x\n", 7*id, "", id, item); // print info
+        read_pointer = (read_pointer + 1) % BUFFER_SIZE; // let the read pointer point to next element
         in_buffer--; 
-        printf("                                                      Consumer %d: item %d consumed (%s)\n", id, ITEM_TO_SEQ(item), to_binary(item)); 
+        //printf("                                                      Consumer %d: item %d consumed (%s)\n", id, ITEM_TO_SEQ(item), to_binary(item)); 
         // possible-cv-signals;
-        pthread_cond_signal(&prod_cond);
-        // mutex-unlock;
+        if (in_buffer == (BUFFER_SIZE - 1)) { // signal producer if buffer was full
+            //printf("signal from consumer %d to producer\n", id);
+            pthread_cond_signal(&prod_cond);
+        }
+        if (in_buffer != 0) { // if there are more items signal consumer for which the next item is
+            int next_dest;
+            next_dest = ITEM_TO_DEST(buffer[read_pointer]));
+            //printf("signal from %d to %d\n", id, next_dest);
+            pthread_cond_signal(&cons_cond[next_dest]);
+        }
+        if (ITEM_TO_SEQ(item) == NROF_ITEMS) { //if the last item is consumed signal producer
+            consumer_finished = true;
+            pthread_cond_signal(&cons_finish);
+        }
         pthread_mutex_unlock(&mutex); 
-        
-        // apply this printf at the correct location in that pseudocode:
-        //printf("%*s    C%d:%04x\n", 7*id, "", id, item); // write info to stdout (with indentation)
     }
 
     return(arg);
@@ -137,26 +161,27 @@ int main (void)
     int i;
 
     // initialize consumer condition variables 
-    pthread_cond_t cons_init = PTHREAD_COND_INITIALIZER;
-    for (i = 0; i < NROF_CONSUMERS; i++) cons_cond[i] = cons_init;
+    for (i = 0; i < NROF_CONSUMERS; i++) {
+        pthread_cond_init(&cons_cond[i], NULL); 
+    }
         
     // startup the producer thread and the consumer threads
     pthread_create(&producer_thread, NULL, producer, NULL);
-    printf("Producer thread created\n");
+    //printf("Producer thread created\n");
     for (i = 0; i < NROF_CONSUMERS; i++)
     {
         pthread_create(&consumer_threads[i], NULL, consumer, (void*) i);
     } 
-    printf("Consumer thread created\n");
+    //printf("Consumer thread created\n");
     
     // wait until all threads are finished  
     pthread_join(producer_thread, NULL);
-    printf("Producer thread finished\n"); 
+    //printf("Producer thread finished\n"); 
     for (i = 0; i < NROF_CONSUMERS; i++)
     {
         pthread_join(consumer_threads[i], NULL);
     }
-    printf("Consumer threads finished\n");
+    //printf("Consumer threads finished\n");
     
     return (0);
 }
