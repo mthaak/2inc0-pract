@@ -93,6 +93,9 @@ static void * producer (void * arg)
     
     // inform consumers that we're ready
     pthread_mutex_lock(&mutex);
+    if (NROF_ITEMS == 0) {
+        consumer_finished = true;
+    }
     while (consumer_finished == false) { // wait for the consumers to finish
         pthread_cond_wait(&cons_finish, &mutex); 
     }
